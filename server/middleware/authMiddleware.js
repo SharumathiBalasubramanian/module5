@@ -5,41 +5,51 @@ const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    // Check Authorization header
+    // Authorization header missing
     if (!authHeader) {
       return res.status(401).json({
         success: false,
-        message: "Authorization header missing",
+        message: "Access denied. Token required.",
       });
     }
 
-    // Check Bearer token
+    // Invalid format
     if (!authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: "Invalid authorization format",
+        message: "Invalid authorization format. Use Bearer <token>.",
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.substring(7).trim();
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Authorization token missing",
+        message: "Access denied. Token required.",
       });
     }
 
-    // Verify JWT
+    // JWT secret MUST exist on Render
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is missing from environment variables.");
+
+      return res.status(500).json({
+        success: false,
+        message: "Server authentication configuration error.",
+      });
+    }
+
+    // Verify token
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || "aura_goods_secret_key_prod_2026"
+      process.env.JWT_SECRET
     );
 
     if (!decoded || !decoded.id) {
       return res.status(401).json({
         success: false,
-        message: "Invalid token payload",
+        message: "Invalid token.",
       });
     }
 
@@ -49,19 +59,34 @@ const protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User account no longer exists",
+        message: "User account no longer exists.",
       });
     }
 
+    // Attach user to request
     req.user = user;
 
     next();
   } catch (error) {
     console.error("AUTH ERROR:", error.message);
 
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        success: false,
+        message: "Token has expired. Please login again.",
+      });
+    }
+
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token.",
+      });
+    }
+
     return res.status(401).json({
       success: false,
-      message: "Token verification failed or expired",
+      message: "Authentication failed.",
     });
   }
 };
@@ -71,14 +96,14 @@ const authorize = (...roles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: "User not authenticated",
+        message: "User not authenticated.",
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `Forbidden: role '${req.user.role}' is not authorized`,
+        message: `Forbidden: role '${req.user.role}' is not authorized.`,
       });
     }
 
