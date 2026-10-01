@@ -1,5 +1,6 @@
 
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/dbConnection");
@@ -9,6 +10,7 @@ const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const userRoutes = require("./routes/userRoutes");
+
 const {
   notFound,
   errorHandler,
@@ -18,6 +20,7 @@ connectDB();
 
 const app = express();
 
+// CORS
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -27,29 +30,22 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without an origin
-      // and configured frontend origins
-      if (
-        !origin ||
-        allowedOrigins.includes(origin)
-      ) {
-        return callback(null, true);
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("CORS blocked:", origin);
+        callback(new Error("CORS access denied"));
       }
-
-      return callback(new Error("CORS access denied"));
     },
-
     credentials: true,
-
     methods: [
       "GET",
       "POST",
       "PUT",
-      "DELETE",
       "PATCH",
+      "DELETE",
       "OPTIONS",
     ],
-
     allowedHeaders: [
       "Content-Type",
       "Authorization",
@@ -57,6 +53,7 @@ app.use(
   })
 );
 
+// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -70,7 +67,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// API Routes
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
@@ -90,17 +87,20 @@ const server = app.listen(PORT, () => {
   );
 
   console.log(
-    `[Aura Goods Server] Allowed Origins:`,
-    allowedOrigins
+    "[Aura Goods Server] Client URL:",
+    process.env.CLIENT_URL
   );
 });
 
-// Handle unhandled promise rejection
+// Unhandled rejection
 process.on("unhandledRejection", (err) => {
   console.error(
     `[Unhandled Error] ${err.message}`
   );
 
-  server.close(() => process.exit(1));
+  server.close(() => {
+    process.exit(1);
+  });
 });
+
 
