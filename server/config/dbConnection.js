@@ -1,11 +1,13 @@
 const mongoose = require("mongoose");
 const dns = require("dns");
 
-// Force Node.js to use public DNS servers that resolve SRV records
-try {
-  dns.setServers(["8.8.8.8", "8.8.4.4"]);
-} catch (err) {
-  console.warn("DNS override failed:", err.message);
+// Only run DNS override locally, NEVER on Render / production
+if (process.env.NODE_ENV !== "production") {
+  try {
+    dns.setServers(["8.8.8.8", "8.8.4.4"]);
+  } catch (err) {
+    console.warn("DNS override failed:", err.message);
+  }
 }
 
 const connectDB = async () => {
@@ -18,9 +20,9 @@ const connectDB = async () => {
       );
     }
 
-    const mongoUri = rawUri.trim();
-
-    const conn = await mongoose.connect(mongoUri);
+    const conn = await mongoose.connect(rawUri.trim(), {
+      serverSelectionTimeoutMS: 5000, // Fails fast in 5s instead of hanging 10s
+    });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     return conn;
