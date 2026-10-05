@@ -1,35 +1,42 @@
 const notFound = (req, res, next) => {
+  const error = new Error(
+    `Endpoint not found: ${req.originalUrl}`
+  );
+
   res.status(404);
-  next(new Error(`Endpoint not found: ${req.originalUrl}`));
+
+  next(error);
 };
 
-const errorHandler = (err, req, res, next) => {
-  let statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
-  let message = err.message || "Internal Server Error";
+const errorHandler = (
+  err,
+  req,
+  res,
+  next
+) => {
+  console.error(
+    "SERVER ERROR:",
+    err
+  );
 
-  if (err.name === "CastError") {
-    statusCode = 400;
-    message = `Malformed identifier: ${err.path}`;
-  }
-
-  if (err.name === "ValidationError") {
-    statusCode = 400;
-    message = Object.values(err.errors)
-      .map((e) => e.message)
-      .join(", ");
-  }
-
-  if (err.code === 11000) {
-    statusCode = 400;
-    const duplicateKey = Object.keys(err.keyValue || {})[0] || "field";
-    message = `Duplicate value entered for ${duplicateKey}`;
-  }
+  const statusCode =
+    res.statusCode !== 200
+      ? res.statusCode
+      : 500;
 
   res.status(statusCode).json({
     success: false,
-    message,
-    stack: process.env.NODE_ENV === "production" ? undefined : err.stack,
+    message:
+      err.message || "Server Error",
+
+    ...(process.env.NODE_ENV ===
+      "development" && {
+      stack: err.stack,
+    }),
   });
 };
 
-module.exports = { notFound, errorHandler };
+module.exports = {
+  notFound,
+  errorHandler,
+};

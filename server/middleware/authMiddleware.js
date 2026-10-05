@@ -1,46 +1,44 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 
+// ==========================================
+// PROTECT
+// ==========================================
+
 const protect = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader =
+      req.headers.authorization;
 
-    // Authorization header missing
     if (!authHeader) {
       return res.status(401).json({
         success: false,
-        message: "Access denied. Token required.",
+        message:
+          "Authorization header missing",
       });
     }
 
-    // Invalid format
-    if (!authHeader.startsWith("Bearer ")) {
+    if (
+      !authHeader.startsWith("Bearer ")
+    ) {
       return res.status(401).json({
         success: false,
-        message: "Invalid authorization format. Use Bearer <token>.",
+        message:
+          "Invalid authorization format",
       });
     }
 
-    const token = authHeader.substring(7).trim();
+    const token =
+      authHeader.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Access denied. Token required.",
+        message:
+          "Authorization token missing",
       });
     }
 
-    // JWT secret MUST exist on Render
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is missing from environment variables.");
-
-      return res.status(500).json({
-        success: false,
-        message: "Server authentication configuration error.",
-      });
-    }
-
-    // Verify token
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET
@@ -49,61 +47,62 @@ const protect = async (req, res, next) => {
     if (!decoded || !decoded.id) {
       return res.status(401).json({
         success: false,
-        message: "Invalid token.",
+        message:
+          "Invalid token payload",
       });
     }
 
-    // Find user
-    const user = await User.findById(decoded.id).select("-password");
+    const user =
+      await User.findById(decoded.id).select(
+        "-password"
+      );
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User account no longer exists.",
+        message:
+          "User account no longer exists",
       });
     }
 
-    // Attach user to request
     req.user = user;
 
     next();
   } catch (error) {
-    console.error("AUTH ERROR:", error.message);
-
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Token has expired. Please login again.",
-      });
-    }
-
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid token.",
-      });
-    }
+    console.error(
+      "AUTH ERROR:",
+      error.message
+    );
 
     return res.status(401).json({
       success: false,
-      message: "Authentication failed.",
+      message:
+        "Token verification failed or expired",
     });
   }
 };
+
+// ==========================================
+// AUTHORIZE ROLE
+// ==========================================
 
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: "User not authenticated.",
+        message:
+          "User not authenticated",
       });
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (
+      !roles.includes(req.user.role)
+    ) {
       return res.status(403).json({
         success: false,
-        message: `Forbidden: role '${req.user.role}' is not authorized.`,
+        message:
+          `Forbidden: role '${req.user.role}' is not authorized`,
       });
     }
 

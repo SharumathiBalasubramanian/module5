@@ -23,7 +23,10 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must contain at least 6 characters"],
+      minlength: [
+        6,
+        "Password must contain at least 6 characters",
+      ],
       select: false,
     },
 
@@ -43,31 +46,26 @@ const userSchema = new mongoose.Schema(
       street: {
         type: String,
         default: "",
-        trim: true,
       },
 
       city: {
         type: String,
         default: "",
-        trim: true,
       },
 
       state: {
         type: String,
         default: "",
-        trim: true,
       },
 
       zip: {
         type: String,
         default: "",
-        trim: true,
       },
 
       country: {
         type: String,
         default: "",
-        trim: true,
       },
     },
   },

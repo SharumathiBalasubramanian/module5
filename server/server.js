@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 
+const connectDB = require("./config/dbConnection");
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -21,7 +23,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow Postman and requests without origin
+      // Allow Postman / Thunder Client / server-to-server requests
       if (!origin) {
         return callback(null, true);
       }
@@ -32,9 +34,7 @@ app.use(
 
       console.log("CORS blocked:", origin);
 
-      return callback(
-        new Error("Not allowed by CORS")
-      );
+      return callback(new Error("Not allowed by CORS"));
     },
 
     credentials: true,
@@ -56,14 +56,14 @@ app.use(
 );
 
 // --------------------------------------------------
-// Body parser
+// BODY PARSER
 // --------------------------------------------------
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --------------------------------------------------
-// Test route
+// TEST ROUTE
 // --------------------------------------------------
 
 app.get("/", (req, res) => {
@@ -87,7 +87,6 @@ app.use("/api/orders", orderRoutes);
 
 // --------------------------------------------------
 // 404
-// MUST BE AFTER ALL ROUTES
 // --------------------------------------------------
 
 app.use((req, res, next) => {
@@ -101,7 +100,7 @@ app.use((req, res, next) => {
 });
 
 // --------------------------------------------------
-// Error handler
+// ERROR HANDLER
 // --------------------------------------------------
 
 app.use((err, req, res, next) => {
@@ -115,6 +114,7 @@ app.use((err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message: err.message || "Server error",
+
     ...(process.env.NODE_ENV === "development" && {
       stack: err.stack,
     }),
@@ -122,14 +122,29 @@ app.use((err, req, res, next) => {
 });
 
 // --------------------------------------------------
-// Server
+// DATABASE + SERVER
 // --------------------------------------------------
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(
-    `Server running on port ${PORT}`
-  );
-});
+const startServer = async () => {
+  try {
+    // Connect MongoDB FIRST
+    await connectDB();
 
+    // Start Express AFTER MongoDB connects
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+  } catch (error) {
+    console.error(
+      "Server startup failed:",
+      error.message
+    );
+
+    process.exit(1);
+  }
+};
+
+startServer();
