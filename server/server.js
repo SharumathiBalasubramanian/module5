@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 
@@ -20,47 +22,33 @@ const allowedOrigins = [
   "https://ecommerceclientz.netlify.app",
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow Postman / Thunder Client / server-to-server requests
-      if (!origin) {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow tools like Postman, curl, or server-to-server requests
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    console.warn("CORS blocked origin:", origin);
+    return callback(null, false);
+  },
 
-      console.log("CORS blocked:", origin);
+  credentials: true,
 
-      return callback(new Error("Not allowed by CORS"));
-    },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 
-    credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-    ],
-  })
-);
+// Global CORS middleware handles both standard and OPTIONS preflight requests
+app.use(cors(corsOptions));
 
 // --------------------------------------------------
 // BODY PARSER
 // --------------------------------------------------
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // --------------------------------------------------
 // TEST ROUTE
@@ -78,24 +66,18 @@ app.get("/", (req, res) => {
 // --------------------------------------------------
 
 app.use("/api/auth", authRoutes);
-
 app.use("/api/users", userRoutes);
-
 app.use("/api/products", productRoutes);
-
 app.use("/api/orders", orderRoutes);
 
 // --------------------------------------------------
 // 404
 // --------------------------------------------------
 
+// In Express 5, use regular middleware without '*' for fallback 404
 app.use((req, res, next) => {
   res.status(404);
-
-  const error = new Error(
-    `Endpoint not found: ${req.originalUrl}`
-  );
-
+  const error = new Error(`Endpoint not found: ${req.originalUrl}`);
   next(error);
 });
 
@@ -107,14 +89,11 @@ app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err);
 
   const statusCode =
-    res.statusCode !== 200
-      ? res.statusCode
-      : 500;
+    res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
 
   res.status(statusCode).json({
     success: false,
     message: err.message || "Server error",
-
     ...(process.env.NODE_ENV === "development" && {
       stack: err.stack,
     }),
@@ -136,13 +115,8 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
-
   } catch (error) {
-    console.error(
-      "Server startup failed:",
-      error.message
-    );
-
+    console.error("Server startup failed:", error.message);
     process.exit(1);
   }
 };
